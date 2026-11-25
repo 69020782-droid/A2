@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wireframe บริหารจัดการอาหารสุนัข — 1.618 · 9 ช่อง · Poka-Yoke</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Prompt:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* สไตล์ขาว-ดำ (ไม่ใช้สี) ตามระบบสัดส่วนทองคำ 1.618 */
+    :root {
+      --phi: 1.618;
+      --bg-canvas: #ffffff;
+      --bg-surface: #f5f5f5;
+      --bg-muted: #e5e5e5;
+      --border-strong: #171717;
+      --border-subtle: #a3a3a3;
+      --text-primary: #171717;
+      --text-secondary: #525252;
+
+      /* สเกลระยะห่าง 1.618: 10px -> 16px -> 26px -> 42px */
+      --space-xs: 10px;
+      --space-sm: 16px;
+      --space-md: 26px;
+      --space-lg: 42px;
+
+      /* สเกลตัวอักษร 1.618: 10px -> 16px -> 26px */
+      --text-xs: 11px;
+      --text-base: 16px;
+      --text-lg: 26px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background: #ededed;
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-sm);
+      gap: var(--space-sm);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      max-width: 631px;
+    }
+
+    .tool-btn {
+      font-family: 'Prompt', sans-serif;
+      font-size: 12px;
+      padding: 8px 14px;
+      min-height: 40px;
+      background: #ffffff;
+      color: #171717;
+      border: 1.5px solid #171717;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .tool-btn.active {
+      background: #171717;
+      color: #ffffff;
+    }
+
+    /* กรอบหน้าจอมือถือ สัดส่วน 1 : 1.618 (390px x 631px) */
+    .phone-frame {
+      width: 390px;
+      max-width: 100%;
+      height: 631px;
+      background: var(--bg-canvas);
+      border: 2px solid var(--border-strong);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* เส้นตาราง 9 ช่อง (3x3) + สัดส่วน 1.618 */
+    .grid-9-overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .grid-9-overlay.visible {
+      display: grid;
+    }
+
+    .grid-9-cell {
+      border: 1px dashed rgba(23, 23, 23, 0.35);
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-end;
+      padding: 4px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #404040;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .phi-guide {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 38.2%; /* 1 / 1.618^2 = 38.2% และ 1 / 1.618 = 61.8% */
+      border-top: 1px dotted #171717;
+      pointer-events: none;
+      display: none;
+      z-index: 51;
+    }
+
+    .phi-guide-lower {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 61.8%;
+      border-top: 1px dotted #171717;
+      pointer-events: none;
+      display: none;
+      z-index: 51;
+    }
+
+    .grid-9-overlay.visible ~ .phi-guide,
+    .grid-9-overlay.visible ~ .phi-guide-lower {
+      display: block;
+    }
+
+    /* Top Header */
+    .app-header {
+      height: 52px;
+      background: #ffffff;
+      color: #171717;
+      border-bottom: 2px solid #171717;
+      display: grid;
+      grid-template-columns: 48px 1fr 48px;
+      align-items: center;
+      text-align: center;
+      flex-shrink: 0;
+      font-family: 'Prompt', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      z-index: 10;
+    }
+
+    .back-btn {
+      height: 44px;
+      width: 44px;
+      margin-left: 4px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #171717;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .back-btn:hover {
+      border-color: #171717;
+    }
+
+    /* Screens using 9-cell (3x3) layout alignment */
+    .screen {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    .grid-9-stage {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: auto 1fr auto;
+      gap: var(--space-xs);
+      padding: var(--space-sm);
+    }
+
+    .span-3 {
+      grid-column: 1 / -1;
+    }
+
+    .center-cell {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* Wireframe Cards */
+    .wf-card {
+      border: 1.5px solid #171717;
+      background: var(--bg-surface);
+      margin-bottom: var(--space-xs);
+    }
+
+    .wf-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      min-height: 44px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 15px;
+    }
+
+    .wf-row:last-child {
+      border-bottom: none;
+    }
+
+    .wf-card-title {
+      text-align: center;
+      padding: 10px 14px;
+      border-bottom: 1.5px solid #171717;
+      font-family: 'Prompt', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      background: #ebebeb;
+    }
+
+    .wf-input, .wf-select {
+      border: 1px solid #737373;
+      background: #ffffff;
+      color: #171717;
+      padding: 6px 10px;
+      font-family: inherit;
+      font-size: 14px;
+      min-height: 36px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Buttons (1.618 height-to-font & padding ratio) */
+    .wf-btn {
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 2px solid #171717;
+      background: #171717;
+      color: #ffffff;
+      font-family: 'Prompt', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .wf-btn-outline {
+      background: #ffffff;
+      color: #171717;
+    }
+
+    .wf-btn:disabled {
+      background: #d4d4d4;
+      border-color: #a3a3a3;
+      color: #525252;
+      cursor: not-allowed;
+    }
+
+    .btn-pair {
+      display: grid;
+      grid-template-columns: 1.618fr 1fr; /* Poka-Yoke: Primary edit wider (1.618) than secondary delete (1) */
+      gap: var(--space-xs);
+    }
+
+    /* Poka-Yoke Banner (Monochrome: bold icon + border, zero color) */
+    .poka-banner {
+      border: 1.5px dashed #171717;
+      background: #f5f5f5;
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: var(--space-xs);
+    }
+
+    /* Hopper 1.618 Ratio Model (Monochrome diagonal stripe fill) */
+    .hopper-tank {
+      width: 228px;
+      height: 141px; /* 228 / 141 = 1.617 (Golden Ratio) */
+      border: 2px solid #171717;
+      margin: 0 auto var(--space-xs);
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+    }
+
+    .hopper-track {
+      flex: 1;
+      border: 1px solid #525252;
+      display: flex;
+      align-items: flex-end;
+      background: #f5f5f5;
+    }
+
+    .hopper-fill {
+      width: 100%;
+      background: repeating-linear-gradient(
+        -45deg,
+        #171717,
+        #171717 6px,
+        #525252 6px,
+        #525252 10px
+      );
+      transition: height 0.25s ease;
+    }
+
+    .chute-tube {
+      width: 62px;
+      height: 100px; /* 100 / 62 = 1.613 */
+      border: 2px solid #171717;
+      margin: 0 auto;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+    }
+
+    /* Wireframe Media Box */
+    .wf-illustration-box {
+      border: 1px dashed #737373;
+      background: repeating-linear-gradient(
+        45deg,
+        #fafafa,
+        #fafafa 8px,
+        #f0f0f0 8px,
+        #f0f0f0 16px
+      );
+      padding: 10px;
+      text-align: center;
+      font-size: 12px;
+      color: #525252;
+    }
+
+    /* Bottom Navigation (4 columns, monochrome) */
+    .bottom-nav {
+      height: 58px;
+      background: #ffffff;
+      border-top: 2px solid #171717;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .nav-item {
+      border: none;
+      border-right: 1px solid #e5e5e5;
+      background: #ffffff;
+      color: #525252;
+      font-family: 'Prompt', sans-serif;
+      font-size: 11px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .nav-item:last-child {
+      border-right: none;
+    }
+
+    .nav-item.active {
+      background: #171717;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(23, 23, 23, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-sm);
+      z-index: 60;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      border: 2px solid #171717;
+      width: 100%;
+      padding: var(--space-sm);
+      max-height: 82%;
+      overflow-y: auto;
+    }
+
+    .toast {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #171717;
+      color: #ffffff;
+      padding: 8px 14px;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 70;
+      white-space: nowrap;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="tool-btn active" id="toggle-grid-btn" onclick="toggleGrid()">ซ่อน/แสดง ตาราง 9 ช่อง + สัดส่วน 1.618</button>
+    <button class="tool-btn" onclick="goToScreen('welcome')">หน้าแรก</button>
+    <button class="tool-btn" onclick="goToScreen('select')">เลือกข้อมูล</button>
+    <button class="tool-btn" onclick="goToScreen('home')">หน้าหลัก</button>
+    <button class="tool-btn" onclick="goToScreen('dispense')">จ่ายอาหาร</button>
+    <button class="tool-btn" onclick="goToScreen('check')">ตรวจสอบ</button>
+  </div>
+
+  <div class="phone-frame">
+    <!-- ตาราง 9 ช่อง (3x3) และเส้นแบ่งสัดส่วนทองคำ 1.618 -->
+    <div id="grid-9-overlay" class="grid-9-overlay visible" aria-hidden="true">
+      <div class="grid-9-cell">1</div>
+      <div class="grid-9-cell">2</div>
+      <div class="grid-9-cell">3</div>
+      <div class="grid-9-cell">4</div>
+      <div class="grid-9-cell">5 (จุดโฟกัส)</div>
+      <div class="grid-9-cell">6</div>
+      <div class="grid-9-cell">7</div>
+      <div class="grid-9-cell">8</div>
+      <div class="grid-9-cell">9</div>
+    </div>
+    <div class="phi-guide" aria-hidden="true"></div>
+    <div class="phi-guide-lower" aria-hidden="true"></div>
+
+    <div id="toast" class="toast" role="status">แจ้งเตือน</div>
+
+    <!-- ภาพ 5 (ก): หน้าแรก (ตำแหน่ง 9 ช่อง + สัดส่วน 1.618) -->
+    <section id="screen-welcome" class="screen active">
+      <div class="grid-9-stage">
+        <div class="span-3 wf-illustration-box">พื้นที่ภาพประกอบด้านบน (ช่อง 1-3)</div>
+        <div class="center-cell" style="text-align:center;gap:26px;align-items:center;">
+          <h1 style="font-family:'Prompt',sans-serif;font-size:24px;font-weight:600;">ยินดีต้อนรับเข้าสู่แอปพลิเคชัน</h1>
+          <button class="wf-btn" style="width:162px;height:44px;" onclick="goToScreen('select')">เริ่ม</button>
+        </div>
+        <div class="span-3 wf-illustration-box">พื้นที่ภาพประกอบสุนัขเกาะรั้ว (ช่อง 7-9)</div>
+      </div>
+    </section>
+
+    <!-- ภาพ 5 (ข): เลือกข้อมูลสุนัข (พร้อม Poka-Yoke) -->
+    <section id="screen-select" class="screen">
+      <header class="app-header">
+        <button class="back-btn" onclick="goToScreen('welcome')" aria-label="ย้อนกลับ">&#8592;</button>
+        <span>เลือกข้อมูลสุนัข</span>
+        <span></span>
+      </header>
+      <div class="grid-9-stage">
+        <div class="span-3">
+          <div class="poka-banner">
+            <strong>Poka-Yoke:</strong> บังคับเลือกสายพันธุ์-น้ำหนัก และจำกัดเวลา 00–23 น. / 00–59 นาที ป้องกันค่าผิดพลาด
+          </div>
+          <div class="wf-card">
+            <div class="wf-row">
+              <label for="s-breed">สายพันธุ์</label>
+              <select id="s-breed" class="wf-select" onchange="updateSelectCalc()">
+                <option value="ตุ๊กตา">ตุ๊กตา</option>
+                <option value="เล็ก">เล็ก</option>
+                <option value="กลาง">กลาง</option>
+                <option value="ใหญ่">ใหญ่</option>
+              </select>
+            </div>
+            <div class="wf-row">
+              <label for="s-weight">น้ำหนัก (กก.)</label>
+              <select id="s-weight" class="wf-select" onchange="updateSelectCalc()">
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="6">6</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+              </select>
+            </div>
+            <div class="wf-row">
+              <label for="s-food">อาหาร (50–2500 กรัม)</label>
+              <input id="s-food" type="number" class="wf-input" style="width:100px;text-align:right;" value="345" min="50" max="2500" oninput="validateSelect()" />
+            </div>
+            <div class="wf-row">
+              <span>กำหนดเวลาเริ่มต้น</span>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input id="s-hour" type="number" class="wf-input" style="width:58px;text-align:center;" value="6" min="0" max="23" oninput="validateSelect()" />
+                <span>:</span>
+                <input id="s-min" type="number" class="wf-input" style="width:58px;text-align:center;" value="0" min="0" max="59" oninput="validateSelect()" />
+              </div>
+            </div>
+          </div>
+          <p id="s-error" style="font-size:12px;margin-bottom:8px;display:none;"></p>
+          <button id="s-save-btn" class="wf-btn" onclick="saveSelect()">บันทึก</button>
+        </div>
+        <div class="span-3"></div>
+        <div class="span-3 wf-illustration-box">พื้นที่ภาพประกอบด้านล่าง (ช่อง 7-9)</div>
+      </div>
+    </section>
+
+    <!-- ภาพ 6 (ก): หน้าหลัก -->
+    <section id="screen-home" class="screen">
+      <header class="app-header">
+        <span></span>
+        <span>หน้าหลัก</span>
+        <span></span>
+      </header>
+      <div class="grid-9-stage">
+        <div class="span-3">
+          <div class="wf-card">
+            <div class="wf-row"><span>สายพันธุ์:</span><strong id="h-breed">ตุ๊กตา</strong></div>
+            <div class="wf-row"><span>น้ำหนัก:</span><strong id="h-weight">4 กิโลกรัม</strong></div>
+            <div class="wf-row"><span>ปริมาณอาหาร:</span><strong id="h-food">345 กรัมต่อวัน</strong></div>
+          </div>
+
+          <div class="wf-card">
+            <div class="wf-card-title">จ่ายอาหารอัตโนมัติ</div>
+            <div class="wf-row"><span>ครั้งที่ 1:</span><strong id="h-m1">06.00</strong></div>
+            <div class="wf-row"><span>ครั้งที่ 2:</span><strong id="h-m2">14.00</strong></div>
+          </div>
+
+          <!-- ปุ่มสัดส่วน 1.618 : 1 พร้อม Poka-Yoke ยืนยันการลบ 2 ขั้นตอน -->
+          <div id="home-actions" class="btn-pair">
+            <button class="wf-btn" onclick="openEdit()">แก้ไขข้อมูล</button>
+            <button class="wf-btn wf-btn-outline" onclick="askDelete(true)">ลบข้อมูล</button>
+          </div>
+          <div id="delete-confirm" class="poka-banner" style="display:none;margin-top:10px;">
+            <p style="font-weight:600;margin-bottom:8px;">Poka-Yoke: ยืนยันการลบข้อมูลสุนัขหรือไม่?</p>
+            <div class="btn-pair">
+              <button class="wf-btn wf-btn-outline" onclick="askDelete(false)">ยกเลิก</button>
+              <button class="wf-btn" onclick="confirmDelete()">ยืนยันลบ</button>
+            </div>
+          </div>
+        </div>
+        <div class="span-3"></div>
+        <div class="span-3 wf-illustration-box">พื้นที่ภาพประกอบด้านล่าง (ช่อง 7-9)</div>
+      </div>
+    </section>
+
+    <!-- ภาพ 6 (ข): แก้ไขข้อมูล -->
+    <section id="screen-edit" class="screen">
+      <header class="app-header">
+        <button class="back-btn" onclick="tryBackFromEdit()" aria-label="ย้อนกลับ">&#8592;</button>
+        <span>แก้ไขข้อมูล</span>
+        <span></span>
+      </header>
+      <div class="grid-9-stage">
+        <div class="span-3">
+          <div class="wf-card">
+            <div class="wf-row">
+              <label for="e-breed">สายพันธุ์</label>
+              <select id="e-breed" class="wf-select" onchange="markEditDirty(true)">
+                <option value="ตุ๊กตา">ตุ๊กตา</option>
+                <option value="เล็ก">เล็ก</option>
+                <option value="กลาง">กลาง</option>
+                <option value="ใหญ่">ใหญ่</option>
+              </select>
+            </div>
+            <div class="wf-row">
+              <label for="e-weight">น้ำหนัก</label>
+              <select id="e-weight" class="wf-select" onchange="markEditDirty(true)">
+                <option value="2">2</option>
+                <option value="4" selected>4</option>
+                <option value="6">6</option>
+                <option value="10">10</option>
+                <option value="15">15</option>
+                <option value="25">25</option>
+              </select>
+            </div>
+            <div class="wf-row">
+              <label for="e-food">อาหาร (กรัม)</label>
+              <input id="e-food" type="number" class="wf-input" style="width:100px;text-align:right;" value="345" min="50" max="2500" oninput="markEditDirty(false)" />
+            </div>
+          </div>
+          <div id="unsaved-warning" class="poka-banner" style="display:none;">
+            <p style="font-weight:600;margin-bottom:8px;">Poka-Yoke: มีการแก้ไขที่ยังไม่บันทึก ต้องการออกหรือไม่?</p>
+            <div class="btn-pair">
+              <button class="wf-btn" onclick="document.getElementById('unsaved-warning').style.display='none'">แก้ไขต่อ</button>
+              <button class="wf-btn wf-btn-outline" onclick="discardEdit()">ละทิ้ง</button>
+            </div>
+          </div>
+          <button id="e-save-btn" class="wf-btn" onclick="saveEdit()">บันทึก</button>
+        </div>
+        <div class="span-3"></div>
+        <div class="span-3"></div>
+      </div>
+    </section>
+
+    <!-- ภาพ 7 (ก): จ่ายอาหาร -->
+    <section id="screen-dispense" class="screen">
+      <header class="app-header">
+        <span></span>
+        <span>จ่ายอาหาร</span>
+        <span></span>
+      </header>
+      <div class="grid-9-stage">
+        <div class="span-3">
+          <div class="wf-card">
+            <label class="wf-row" style="cursor:pointer;">
+              <span>กำหนดเอง</span>
+              <input type="radio" name="dmode" checked onchange="setDispenseMode('manual')" />
+            </label>
+            <label class="wf-row" style="cursor:pointer;">
+              <span>อัตโนมัติ</span>
+              <input type="radio" name="dmode" onchange="setDispenseMode('auto')" />
+            </label>
+          </div>
+
+          <div id="d-manual-box" class="wf-card" style="padding:14px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span>ปริมาณอาหาร (กรัม)</span>
+              <strong id="d-grams-val">172 กรัม</strong>
+            </div>
+            <input id="d-slider" type="range" min="10" max="500" value="172" style="width:100%;accent-color:#171717;margin-bottom:10px;" oninput="updateDispenseSlider()" />
+            <div id="d-over-warn" class="poka-banner" style="display:none;">
+              Poka-Yoke: ปริมาณเกินอาหารแนะนำต่อวัน กรุณากดยืนยันเพื่อสั่งจ่าย
+            </div>
+            <button id="d-submit-btn" class="wf-btn" onclick="dispenseManual()">สั่งจ่ายอาหาร</button>
+          </div>
+
+          <div id="d-auto-box" class="wf-card" style="padding:14px;display:none;">
+            <p style="font-weight:600;margin-bottom:6px;">จ่ายตามเวลาอัตโนมัติ</p>
+            <p style="font-size:13px;color:#525252;margin-bottom:10px;">ระบบทำงานเวลา 06.00 น. และ 14.00 น.</p>
+            <button class="wf-btn" onclick="showToast('เปิดโหมดจ่ายอาหารอัตโนมัติแล้ว')">ยืนยันโหมดอัตโนมัติ</button>
+          </div>
+        </div>
+        <div class="span-3"></div>
+        <div class="span-3"></div>
+      </div>
+    </section>
+
+    <!-- ภาพ 7 (ข): ตรวจสอบอาหาร -->
+    <section id="screen-check" class="screen">
+      <header class="app-header">
+        <span></span>
+        <span>ตรวจสอบอาหาร</span>
+        <span></span>
+      </header>
+      <div class="grid-9-stage">
+        <div class="span-3" style="text-align:center;">
+          <button class="wf-btn wf-btn-outline" style="width:140px;min-height:40px;margin-bottom:12px;" onclick="openHistory()">ประวัติ</button>
+          <div class="wf-card" style="margin-bottom:12px;">
+            <div class="wf-row"><span>ถังอาหารคงเหลือ</span><strong id="c-remain">6241 กรัม</strong></div>
+            <div class="wf-row"><span>ปริมาณอาหารคงเหลือ</span><strong id="c-used">1759 กรัม</strong></div>
+          </div>
+
+          <!-- แบบจำลองสัดส่วน 1.618 (228 x 141) โทนขาว-ดำ -->
+          <div class="hopper-tank">
+            <div id="c-pct" style="font-size:12px;font-weight:600;margin-bottom:6px;">78%</div>
+            <div class="hopper-track">
+              <div id="c-bar" class="hopper-fill" style="height:78%;"></div>
+            </div>
+          </div>
+
+          <div class="chute-tube">
+            <div style="font-size:11px;font-weight:600;margin-bottom:4px;">100%</div>
+            <div class="hopper-track">
+              <div class="hopper-fill" style="height:100%;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="span-3"></div>
+        <div class="span-3"></div>
+      </div>
+    </section>
+
+    <!-- กล้อง -->
+    <section id="screen-camera" class="screen">
+      <header class="app-header">
+        <span></span>
+        <span>กล้อง</span>
+        <span></span>
+      </header>
+      <div class="grid-9-stage">
+        <div class="span-3">
+          <div class="wf-illustration-box" style="height:220px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;margin-bottom:12px;">
+            <strong>พื้นที่แสดงภาพกล้อง (ตำแหน่งช่อง 2-5)</strong>
+            <span>ชามอาหารจุดปล่อยที่ 1</span>
+          </div>
+          <button class="wf-btn" onclick="showToast('บันทึกภาพตรวจสอบแล้ว')">ถ่ายภาพตรวจสอบ</button>
+        </div>
+        <div class="span-3"></div>
+        <div class="span-3"></div>
+      </div>
+    </section>
+
+    <!-- Bottom Tab Navigation -->
+    <nav id="bottom-nav" class="bottom-nav" style="display:none;">
+      <button class="nav-item active" data-tab="home" onclick="goToScreen('home')">หน้าหลัก</button>
+      <button class="nav-item" data-tab="dispense" onclick="goToScreen('dispense')">จ่ายอาหาร</button>
+      <button class="nav-item" data-tab="check" onclick="goToScreen('check')">ตรวจสอบอาหาร</button>
+      <button class="nav-item" data-tab="camera" onclick="goToScreen('camera')">กล้อง</button>
+    </nav>
+
+    <!-- Modal ประวัติ -->
+    <div id="history-modal" class="modal-backdrop">
+      <div class="modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1.5px solid #171717;padding-bottom:8px;">
+          <strong style="font-family:'Prompt',sans-serif;">ประวัติการจ่ายอาหาร</strong>
+          <button onclick="document.getElementById('history-modal').classList.remove('open')" style="border:1px solid #171717;background:#fff;width:32px;height:32px;cursor:pointer;">&times;</button>
+        </div>
+        <div id="history-items"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CAPACITY = 8000;
+    const state = {
+      breed: 'ตุ๊กตา',
+      weight: 4,
+      food: 345,
+      meal1: '06.00',
+      meal2: '14.00',
+      remain: 6241,
+      editDirty: false,
+      logs: [
+        { time: 'วันนี้ 14:00 น.', mode: 'อัตโนมัติ', grams: 173 },
+        { time: 'วันนี้ 06:00 น.', mode: 'อัตโนมัติ', grams: 172 }
+      ]
+    };
+
+    function toggleGrid() {
+      const overlay = document.getElementById('grid-9-overlay');
+      const btn = document.getElementById('toggle-grid-btn');
+      const visible = overlay.classList.toggle('visible');
+      btn.classList.toggle('active', visible);
+    }
+
+    function goToScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('screen-' + id).classList.add('active');
+      const nav = document.getElementById('bottom-nav');
+      nav.style.display = ['home', 'edit', 'dispense', 'check', 'camera'].includes(id) ? 'grid' : 'none';
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        const target = btn.getAttribute('data-tab');
+        btn.classList.toggle('active', target === id || (id === 'edit' && target === 'home'));
+      });
+    }
+
+    function calcGrams(breed, w) {
+      const map = { 'ตุ๊กตา': 86.25, 'เล็ก': 65, 'กลาง': 45, 'ใหญ่': 32 };
+      return Math.round(w * (map[breed] || 50));
+    }
+
+    function updateSelectCalc() {
+      const b = document.getElementById('s-breed').value;
+      const w = Number(document.getElementById('s-weight').value);
+      document.getElementById('s-food').value = calcGrams(b, w);
+      validateSelect();
+    }
+
+    function validateSelect() {
+      const food = Number(document.getElementById('s-food').value);
+      const h = Number(document.getElementById('s-hour').value);
+      const m = Number(document.getElementById('s-min').value);
+      const err = document.getElementById('s-error');
+      const btn = document.getElementById('s-save-btn');
+      let msg = '';
+      if (isNaN(food) || food < 50 || food > 2500) msg = 'Poka-Yoke: ปริมาณอาหารต้องอยู่ระหว่าง 50–2,500 กรัม';
+      else if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) msg = 'Poka-Yoke: เวลาต้องเป็น 00–23 น. และ 00–59 นาที';
+      err.textContent = msg;
+      err.style.display = msg ? 'block' : 'none';
+      btn.disabled = Boolean(msg);
+      return !msg;
+    }
+
+    function saveSelect() {
+      if (!validateSelect()) return;
+      state.breed = document.getElementById('s-breed').value;
+      state.weight = Number(document.getElementById('s-weight').value);
+      state.food = Number(document.getElementById('s-food').value);
+      const h = Number(document.getElementById('s-hour').value);
+      const m = Number(document.getElementById('s-min').value);
+      const pad = n => String(n).padStart(2, '0');
+      state.meal1 = pad(h) + '.' + pad(m);
+      state.meal2 = pad((h + 8) % 24) + '.' + pad(m);
+      syncHome();
+      goToScreen('home');
+      showToast('บันทึกข้อมูลสำเร็จ');
+    }
+
+    function syncHome() {
+      document.getElementById('h-breed').textContent = state.breed;
+      document.getElementById('h-weight').textContent = state.weight + ' กิโลกรัม';
+      document.getElementById('h-food').textContent = state.food + ' กรัมต่อวัน';
+      document.getElementById('h-m1').textContent = state.meal1;
+      document.getElementById('h-m2').textContent = state.meal2;
+    }
+
+    function askDelete(show) {
+      document.getElementById('delete-confirm').style.display = show ? 'block' : 'none';
+      document.getElementById('home-actions').style.display = show ? 'none' : 'grid';
+    }
+
+    function confirmDelete() {
+      askDelete(false);
+      goToScreen('welcome');
+      showToast('ลบข้อมูลเรียบร้อย');
+    }
+
+    function openEdit() {
+      document.getElementById('e-breed').value = state.breed;
+      document.getElementById('e-weight').value = String(state.weight);
+      document.getElementById('e-food').value = state.food;
+      state.editDirty = false;
+      document.getElementById('unsaved-warning').style.display = 'none';
+      goToScreen('edit');
+    }
+
+    function markEditDirty(recalc) {
+      state.editDirty = true;
+      if (recalc) {
+        const b = document.getElementById('e-breed').value;
+        const w = Number(document.getElementById('e-weight').value);
+        document.getElementById('e-food').value = calcGrams(b, w);
+      }
+      const f = Number(document.getElementById('e-food').value);
+      document.getElementById('e-save-btn').disabled = isNaN(f) || f < 50 || f > 2500;
+    }
+
+    function tryBackFromEdit() {
+      if (state.editDirty) {
+        document.getElementById('unsaved-warning').style.display = 'block';
+      } else {
+        goToScreen('home');
+      }
+    }
+
+    function discardEdit() {
+      state.editDirty = false;
+      document.getElementById('unsaved-warning').style.display = 'none';
+      goToScreen('home');
+    }
+
+    function saveEdit() {
+      state.breed = document.getElementById('e-breed').value;
+      state.weight = Number(document.getElementById('e-weight').value);
+      state.food = Number(document.getElementById('e-food').value);
+      state.editDirty = false;
+      syncHome();
+      goToScreen('home');
+      showToast('อัปเดตข้อมูลแล้ว');
+    }
+
+    function setDispenseMode(mode) {
+      document.getElementById('d-manual-box').style.display = mode === 'manual' ? 'block' : 'none';
+      document.getElementById('d-auto-box').style.display = mode === 'auto' ? 'block' : 'none';
+    }
+
+    function updateDispenseSlider() {
+      const val = Number(document.getElementById('d-slider').value);
+      document.getElementById('d-grams-val').textContent = val + ' กรัม';
+      document.getElementById('d-over-warn').style.display = val > state.food ? 'block' : 'none';
+      document.getElementById('d-submit-btn').disabled = val > state.remain || val <= 0;
+    }
+
+    function dispenseManual() {
+      const val = Number(document.getElementById('d-slider').value);
+      if (val > state.remain) return;
+      state.remain -= val;
+      const pct = Math.round((state.remain / CAPACITY) * 100);
+      document.getElementById('c-remain').textContent = state.remain + ' กรัม';
+      document.getElementById('c-used').textContent = (CAPACITY - state.remain) + ' กรัม';
+      document.getElementById('c-pct').textContent = pct + '%';
+      document.getElementById('c-bar').style.height = pct + '%';
+      state.logs.unshift({ time: 'เมื่อสักครู่', mode: 'กำหนดเอง', grams: val });
+      updateDispenseSlider();
+      showToast('จ่ายอาหาร ' + val + ' กรัม แล้ว');
+    }
+
+    function openHistory() {
+      document.getElementById('history-items').innerHTML = state.logs.map(l =>
+        '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e5e5e5;font-size:14px;">' +
+        '<div><strong>' + l.mode + '</strong><div style="font-size:12px;color:#525252;">' + l.time + '</div></div>' +
+        '<strong>' + l.grams + ' กรัม</strong></div>'
+      ).join('');
+      document.getElementById('history-modal').classList.add('open');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+  </script>
+</body>
+</html>
